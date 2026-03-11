@@ -9,6 +9,7 @@ const SHEET_HEADERS = {
   Contracts:     ['id','salesContextId','amount','startDate','endDate','status','createdAt'],
   Revenues:      ['id','contractId','amount','revenueDate','status','createdAt'],
   Users:         ['id','name','loginId','pw','role','isActive','createdAt'],
+  Stages:        ['id','label','color','icon','order'],
 };
 
 module.exports = async (req, res) => {
@@ -49,6 +50,12 @@ module.exports = async (req, res) => {
             })),
             // 기본 관리자 계정
             { range: 'Users!A2', values: [['u1', '관리자', 'admin', '1234', 'admin', 'true', now]] },
+            // 기본 영업 단계
+            { range: 'Stages!A2', values: [
+              ['contact',     '접촉', '#60a5fa', '◈', '0'],
+              ['proposal',    '제안', '#a78bfa', '▣', '1'],
+              ['negotiation', '협상', '#fb923c', '◆', '2'],
+            ]},
           ],
         },
       });

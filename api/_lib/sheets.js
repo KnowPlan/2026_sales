@@ -21,30 +21,46 @@ function ssId() {
   return id.trim();
 }
 
-/** 시트 전체 행을 객체 배열로 반환 */
+/** 시트 전체 행을 객체 배열로 반환 (시트 없으면 [] 반환) */
 async function readAll(sheetName) {
-  const r = await sheets().spreadsheets.values.get({
-    spreadsheetId: ssId(),
-    range: sheetName,
-  });
-  const rows = r.data.values || [];
-  if (rows.length < 2) return [];
-  const [headers, ...data] = rows;
-  return data.map(row =>
-    Object.fromEntries(headers.map((h, i) => [h, row[i] ?? '']))
-  );
+  try {
+    const r = await sheets().spreadsheets.values.get({
+      spreadsheetId: ssId(),
+      range: sheetName,
+    });
+    const rows = r.data.values || [];
+    if (rows.length < 2) return [];
+    const [headers, ...data] = rows;
+    return data.map(row =>
+      Object.fromEntries(headers.map((h, i) => [h, row[i] ?? '']))
+    );
+  } catch (e) {
+    if (e.code === 400 || e.status === 400) return [];
+    throw e;
+  }
 }
 
-/** 행 추가 (없는 컬럼은 헤더에 자동 추가) */
+/** 행 추가 (없는 컬럼은 헤더에 자동 추가, 시트 없으면 자동 생성) */
 async function appendRow(sheetName, data) {
   const id = ssId();
   const s = sheets();
 
-  const hRes = await s.spreadsheets.values.get({
-    spreadsheetId: id,
-    range: `${sheetName}!1:1`,
-  });
-  let headers = hRes.data.values?.[0] ?? [];
+  let headers = [];
+  try {
+    const hRes = await s.spreadsheets.values.get({
+      spreadsheetId: id,
+      range: `${sheetName}!1:1`,
+    });
+    headers = hRes.data.values?.[0] ?? [];
+  } catch (e) {
+    if (e.code === 400 || e.status === 400) {
+      // 시트 없음 - 새로 생성
+      await s.spreadsheets.batchUpdate({
+        spreadsheetId: id,
+        requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] },
+      });
+    } else throw e;
+  }
 
   const newKeys = Object.keys(data).filter(k => !headers.includes(k));
   if (!headers.length || newKeys.length) {

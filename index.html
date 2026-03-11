@@ -1371,10 +1371,10 @@ function pgStageMgr(){
             const useCnt=D.ctxs.filter(c=>c.stage===s.id).length;
             const upBtn=h('button',{className:'btn btn-s',style:{padding:'1px 7px',fontSize:'12px',opacity:i===0?.3:1}},
               '↑');
-            upBtn.addEventListener('click',()=>{if(i===0)return;const a=[...D.stages];[a[i-1],a[i]]=[a[i],a[i-1]];D.stages=a;render();});
+            upBtn.addEventListener('click',()=>{if(i===0)return;const a=[...D.stages];[a[i-1],a[i]]=[a[i],a[i-1]];D.stages=a;syncUpdateSheet('stages',a[i-1].id,{l:a[i-1].l,c:a[i-1].c,i:a[i-1].i,ord:i-1});syncUpdateSheet('stages',a[i].id,{l:a[i].l,c:a[i].c,i:a[i].i,ord:i});render();});
             const dnBtn=h('button',{className:'btn btn-s',style:{padding:'1px 7px',fontSize:'12px',opacity:i===mid.length-1?.3:1}},
               '↓');
-            dnBtn.addEventListener('click',()=>{if(i===mid.length-1)return;const a=[...D.stages];[a[i],a[i+1]]=[a[i+1],a[i]];D.stages=a;render();});
+            dnBtn.addEventListener('click',()=>{if(i===mid.length-1)return;const a=[...D.stages];[a[i],a[i+1]]=[a[i+1],a[i]];D.stages=a;syncUpdateSheet('stages',a[i].id,{l:a[i].l,c:a[i].c,i:a[i].i,ord:i});syncUpdateSheet('stages',a[i+1].id,{l:a[i+1].l,c:a[i+1].c,i:a[i+1].i,ord:i+1});render();});
             const editBtn=h('button',{className:'btn btn-s'},'수정');
             editBtn.addEventListener('click',()=>{D.modal={type:'stageedit',data:{...s}};render();});
             const delBtn=h('button',{className:'btn btn-s btn-d'},'삭제');
@@ -1383,6 +1383,7 @@ function pgStageMgr(){
               if(!confirm(msg))return;
               D.ctxs.forEach(c=>{if(c.stage===s.id)c.stage='lead';});
               D.stages=D.stages.filter(x=>x.id!==s.id);
+              syncDeleteSheet('stages',s.id);
               toast(s.l+' 삭제 완료');render();
             });
             return h('div',{style:{display:'flex',alignItems:'center',gap:'10px',padding:'11px 16px',background:'var(--bg3)',border:'1px solid var(--bd)',borderRadius:'8px'}},
@@ -1649,8 +1650,8 @@ function renderModal(){
     ),()=>{
       if(!f.l.trim()){toast('단계명을 입력하세요');return;}
       if(!isE&&getSTG().some(s=>s.l===f.l.trim())){toast('같은 이름의 단계가 있습니다');return;}
-      if(isE){const s=D.stages.find(x=>x.id===d.id);if(s){s.l=f.l.trim();s.c=f.c;s.i=f.i;}}
-      else{D.stages.push({id:uid(),l:f.l.trim(),c:f.c,i:f.i});}
+      if(isE){const s=D.stages.find(x=>x.id===d.id);if(s){s.l=f.l.trim();s.c=f.c;s.i=f.i;syncUpdateSheet('stages',d.id,{l:s.l,c:s.c,i:s.i});}}
+      else{const ns={id:uid(),l:f.l.trim(),c:f.c,i:f.i};D.stages.push(ns);syncToSheet('stages',{...ns,ord:D.stages.length-1});}
       close();toast(isE?'단계 수정 완료':'단계 추가 완료');
     })}
 
@@ -1849,7 +1850,7 @@ var API={
 };
 
 // Sheet name mapping (D key -> Sheet name)
-var SM={sols:'Solutions',custs:'Customers',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users'};
+var SM={sols:'Solutions',custs:'Customers',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users',stages:'Stages'};
 // Field mapping (D short keys -> Sheet full keys)
 var FM={
   custs:{cn:'contactName',ph:'phone',em:'email',addr:'address',ca:'createdAt'},
@@ -1858,7 +1859,8 @@ var FM={
   cts:{scid:'salesContextId',amt:'amount',sd:'startDate',ed:'endDate',st:'status'},
   revs:{ctid:'contractId',amt:'amount',rd:'revenueDate',st:'status'},
   sols:{desc:'description',ca:'createdAt'},
-  users:{ca:'createdAt'}
+  users:{ca:'createdAt'},
+  stages:{l:'label',c:'color',i:'icon',ord:'order'}
 };
 
 function toSheet(key,obj){
@@ -1879,7 +1881,13 @@ async function loadAllFromSheets(){
     if(rows){
       let mapped=rows.map(r=>fromSheet(dk,r));
       if(dk==='users') mapped=mapped.map(normalizeUserRow).filter(u=>normAuth(u.loginId)&&normAuth(u.pw));
-      D[dk]=mapped;
+      if(dk==='stages'){
+        mapped=mapped.sort((a,b)=>Number(a.ord||0)-Number(b.ord||0));
+        mapped.forEach(s=>{delete s.ord;});
+        if(mapped.length>0) D[dk]=mapped; // 빈 경우 기본값 유지
+      } else {
+        D[dk]=mapped;
+      }
       // Convert numeric fields
       if(dk==='ctxs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='cts')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
