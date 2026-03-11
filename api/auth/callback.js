@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
       return res.status(400).send(errPage('Client ID / Secret을 확인할 수 없습니다.'));
     }
 
-    const redirectUri = `https://${req.headers.host}/api/auth/callback`;
+    const redirectUri = process.env.OAUTH_REDIRECT_URI || `https://${req.headers.host}/api/auth/callback`;
     const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
     const { tokens } = await auth.getToken(code);
     const refreshToken = tokens.refresh_token;

@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
     if (!clientId || !clientSecret) {
       return res.status(400).json({ error: 'clientId와 clientSecret을 입력하세요.' });
     }
-    const redirectUri = `https://${req.headers.host}/api/auth/callback`;
+    const redirectUri = process.env.OAUTH_REDIRECT_URI || `https://${req.headers.host}/api/auth/callback`;
     const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
     // state에 credentials 인코딩 (콜백에서 복원)
     const state = Buffer.from(JSON.stringify({ clientId, clientSecret })).toString('base64');
@@ -44,7 +44,7 @@ h2{color:#fbbf24}code{background:#1c1c26;padding:2px 8px;border-radius:4px;font-
 </body></html>`);
   }
 
-  const redirectUri = `https://${req.headers.host}/api/auth/callback`;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI || `https://${req.headers.host}/api/auth/callback`;
   const state = Buffer.from(JSON.stringify({ clientId, clientSecret })).toString('base64');
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   const authUrl = auth.generateAuthUrl({
