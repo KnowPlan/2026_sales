@@ -1636,22 +1636,24 @@ function renderModal(){
     const isE=m.type==='stageedit';const d=isE?m.data:{};
     const ICONS=['◈','▣','◆','▷','▶','◉','✦','✧','★','⬟','⊕','✔','⬡','◐','⊗'];
     const PCOLORS=['#60a5fa','#a78bfa','#fb923c','#f59e0b','#34d399','#e879f9','#22d3ee','#f97316','#84cc16','#ec4899','#f43f5e','#8b5cf6'];
-    if(!f._init){f._init=true;f.l=d.l||'';f.c=d.c||'#60a5fa';f.i=d.i||'◈';}
+    // D.modal에 폼 상태 저장 → render() 호출 후에도 유지
+    if(!m._f){m._f={l:d.l||'',c:d.c||'#60a5fa',i:d.i||'◈'};}
+    const mf=m._f;
     return ov(isE?'단계 수정':'단계 추가',h('div',
-      fg('단계명',h('input',{className:'inp',placeholder:'예: 검토, PoC, 협의',value:f.l,onInput:e=>{f.l=e.target.value;}}),1),
+      fg('단계명',h('input',{className:'inp',placeholder:'예: 검토, PoC, 협의',value:mf.l,onInput:e=>{mf.l=e.target.value;}}),1),
       fg('색상',h('div',{style:{display:'flex',gap:'8px',alignItems:'center',flexWrap:'wrap'}},
-        h('input',{type:'color',className:'inp',value:f.c,style:{width:'44px',height:'36px',padding:'2px',flex:'none'},onInput:e=>{f.c=e.target.value;render();}}),
-        ...PCOLORS.map(pc=>h('div',{style:{width:'24px',height:'24px',borderRadius:'50%',background:pc,cursor:'pointer',border:f.c===pc?'2.5px solid #fff':'2px solid transparent',boxSizing:'border-box',flexShrink:0},onClick:()=>{f.c=pc;render();}}))),1),
+        h('input',{type:'color',className:'inp',value:mf.c,style:{width:'44px',height:'36px',padding:'2px',flex:'none'},onInput:e=>{mf.c=e.target.value;render();}}),
+        ...PCOLORS.map(pc=>h('div',{style:{width:'24px',height:'24px',borderRadius:'50%',background:pc,cursor:'pointer',border:mf.c===pc?'2.5px solid #fff':'2px solid transparent',boxSizing:'border-box',flexShrink:0},onClick:()=>{mf.c=pc;render();}}))),1),
       fg('아이콘',h('div',{style:{display:'flex',gap:'6px',flexWrap:'wrap'}},
-        ...ICONS.map(ic=>h('div',{style:{width:'34px',height:'34px',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',cursor:'pointer',border:f.i===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:f.i===ic?'rgba(99,102,241,.15)':'var(--bg0)',color:f.c,userSelect:'none'},onClick:()=>{f.i=ic;render();}},ic))),1),
+        ...ICONS.map(ic=>h('div',{style:{width:'34px',height:'34px',borderRadius:'6px',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'17px',cursor:'pointer',border:mf.i===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:mf.i===ic?'rgba(99,102,241,.15)':'var(--bg0)',color:mf.c,userSelect:'none'},onClick:()=>{mf.i=ic;render();}},ic))),1),
       h('div',{style:{padding:'10px 16px',background:'var(--bg0)',borderRadius:'8px',border:'1px solid var(--bd)',display:'flex',alignItems:'center',gap:'10px',marginTop:'4px'}},
         h('span',{style:{fontSize:'12px',color:'var(--t3)'}},'미리보기'),
-        h('span',{style:{padding:'4px 14px',borderRadius:'20px',fontSize:'12px',fontWeight:600,background:f.c+'22',color:f.c,border:'1.5px solid '+f.c+'44'}},f.i+' '+f.l))
+        h('span',{style:{padding:'4px 14px',borderRadius:'20px',fontSize:'12px',fontWeight:600,background:mf.c+'22',color:mf.c,border:'1.5px solid '+mf.c+'44'}},mf.i+' '+mf.l))
     ),()=>{
-      if(!f.l.trim()){toast('단계명을 입력하세요');return;}
-      if(!isE&&getSTG().some(s=>s.l===f.l.trim())){toast('같은 이름의 단계가 있습니다');return;}
-      if(isE){const s=D.stages.find(x=>x.id===d.id);if(s){s.l=f.l.trim();s.c=f.c;s.i=f.i;syncUpdateSheet('stages',d.id,{l:s.l,c:s.c,i:s.i});}}
-      else{const ns={id:uid(),l:f.l.trim(),c:f.c,i:f.i};D.stages.push(ns);syncToSheet('stages',{...ns,ord:D.stages.length-1});}
+      if(!mf.l.trim()){toast('단계명을 입력하세요');return;}
+      if(!isE&&getSTG().some(s=>s.l===mf.l.trim())){toast('같은 이름의 단계가 있습니다');return;}
+      if(isE){const s=D.stages.find(x=>x.id===d.id);if(s){s.l=mf.l.trim();s.c=mf.c;s.i=mf.i;syncUpdateSheet('stages',d.id,{l:s.l,c:s.c,i:s.i});}}
+      else{const ns={id:uid(),l:mf.l.trim(),c:mf.c,i:mf.i};D.stages.push(ns);syncToSheet('stages',{...ns,ord:D.stages.length-1});}
       close();toast(isE?'단계 수정 완료':'단계 추가 완료');
     })}
 
