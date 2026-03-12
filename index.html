@@ -7,7 +7,7 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
 <style>
 :root{--bg0:#0f0f12;--bg1:#17171e;--bg2:#1c1c26;--bg3:#23232f;--bd:#2d2d3a;--bd2:#363645;--t1:#e8e8ee;--t2:#9393a8;--t3:#64647a;--ac:#6366f1;--ac2:#818cf8;--ok:#34d399;--err:#f87171;--warn:#fbbf24}
-*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg2);color:var(--t1);height:100vh;overflow:hidden}
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg2);color:var(--t1);height:100vh;}#root{height:100vh;overflow:hidden;}
 button,input,select,textarea{font-family:inherit;-webkit-app-region:no-drag}
 .app{display:flex;height:100vh;overflow:hidden}
 .sb{width:260px;min-width:260px;background:var(--bg1);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
@@ -193,7 +193,7 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:po
 
 /* ── 모바일 레이아웃 (≤900px) ── */
 @media(max-width:900px){
-  body{overflow:hidden;height:100svh}
+  body{height:100svh;}#root{height:100svh;overflow:hidden;}
 
   /* 앱 전체: 화면 꽉 채우기 */
   .app{
