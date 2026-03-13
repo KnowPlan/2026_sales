@@ -381,6 +381,11 @@ var D={
     {id:'p1',name:'(주)테크파트너',cn:'최파트너',ph:'02-9876-5432',em:'choi@techpartner.co.kr',addr:'서울 서초구',type:'SI',memo:'SI 파트너',ca:'2024-06-01'},
     {id:'p2',name:'클라우드원',cn:'정파트너',ph:'02-8765-4321',em:'jung@cloud1.co.kr',addr:'서울 강서구',type:'리셀러',memo:'',ca:'2024-09-15'},
   ],
+  pcontacts:[
+    {id:'pc1',pid:'p1',name:'최파트너',dept:'영업팀',pos:'팀장',ph:'010-1234-5678',em:'choi@techpartner.co.kr',note:'주요 의사결정자',isPrimary:true,status:'active',ca:'2024-06-01'},
+    {id:'pc2',pid:'p1',name:'박기술',dept:'기술팀',pos:'과장',ph:'010-2345-6789',em:'park@techpartner.co.kr',note:'기술 검토 담당',isPrimary:false,status:'active',ca:'2024-06-15'},
+    {id:'pc3',pid:'p2',name:'정파트너',dept:'영업팀',pos:'대리',ph:'010-9876-5432',em:'jung@cloud1.co.kr',note:'',isPrimary:true,status:'active',ca:'2024-09-15'},
+  ],
   ctxs:[
     {id:'sc1',cid:'c1',sid:'sol_1',oid:'u1',stage:'negotiation',amt:500000000,ecd:'2025-04-15',yr:'2025',desc:'AI 문서 분석 도입'},
     {id:'sc2',cid:'c1',sid:'sol_2',oid:'u2',stage:'closed',amt:300000000,ecd:'2025-01-30',yr:'2025',desc:'컴플라이언스 모니터링'},
@@ -412,7 +417,7 @@ var D={
     {id:'r3',ctid:'ct3',amt:87500000,rd:'2025-01-20',st:'confirmed',memo:'1분기'},
     {id:'r4',ctid:'ct1',amt:75000000,rd:'2025-05-01',st:'pending',memo:'2분기 예정'},
   ],
-  pg:'dashboard',ss:null,sc:null,modal:null,exp:{},ctab:'summary',toast:null,di:null,
+  pg:'dashboard',ss:null,sc:null,sp:null,modal:null,exp:{},ctab:'summary',ptab:'info',toast:null,di:null,
   loggedIn:false,curUser:null,loginErr:'',
   sq:'',sf:'all',pipeYear:new Date().getFullYear(),
   pipePanel:null,ppTab:'info',
@@ -461,7 +466,7 @@ function doSearchRender(){
   }
   render();
 }
-function nav(p,o={}){D.pg=p;if(o.sol!==undefined)D.ss=o.sol;if(o.cust!==undefined){D.sc=o.cust;D.ctab='summary';}if(p!=='pipeline')D.pipePanel=null;D._mobSbOpen=false;render();}
+function nav(p,o={}){D.pg=p;if(o.sol!==undefined)D.ss=o.sol;if(o.cust!==undefined){D.sc=o.cust;D.ctab='summary';}if(o.partner!==undefined){D.sp=o.partner;D.ptab='info';}if(p!=='pipeline')D.pipePanel=null;D._mobSbOpen=false;render();}
 function addAct(scid,type,title,ct=''){var a={id:uid(),scid,type,title,ct,oid:D.curUser?.id||'u1',ca:now()};D.acts.unshift(a);syncToSheet('acts',a);}
 
 // ═══ RENDER ═══
@@ -532,7 +537,7 @@ function renderLogin(){
   );
 }
 
-function doLogout(){D.loggedIn=false;D.curUser=null;D.pg='dashboard';D.ss=null;D.sc=null;D.loginErr='';clearPersistedAuth();clearPersistedNav();render();}
+function doLogout(){D.loggedIn=false;D.curUser=null;D.pg='dashboard';D.ss=null;D.sc=null;D.sp=null;D.loginErr='';clearPersistedAuth();clearPersistedNav();render();}
 
 function openProfileModal(){
   D.modal={type:'profile'};render();
@@ -606,7 +611,7 @@ function renderPage(){
     case 'dashboard':return pgDash();case 'pipeline':return pgSList();
     case 'slist':return pgSList();case 'sacts':return pgTL();
     case 'scts':return pgCts();case 'srevs':return pgRevs();
-    case 'custs':return pgCusts();case 'custd':return pgCustD();case 'partners':return pgPartners();
+    case 'custs':return pgCusts();case 'custd':return pgCustD();case 'partners':return pgPartners();case 'partnerd':return pgPartnerD();
     case 'timeline':return pgTL('all');case 'ctsall':return pgCts('all');
     case 'solmgr':return pgSolMgr();case 'stagemgr':return pgStageMgr();case 'users':return pgUsers();
     case 'search':return pgSearch();
@@ -998,21 +1003,87 @@ function pgPartners(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
     h('div',{className:'mh'},h('h1','🤝 협력사'),h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'partner'};render();}},'+ 협력사 등록')),
     h('div',{className:'mb'},h('div',{className:'dt-wrap'},h('table',{className:'dt'},
-      h('thead',h('tr',...['회사명','담당자','연락처','구분','등록일','관리'].map(t=>h('th',t)))),
+      h('thead',h('tr',...['회사명','대표 담당자','담당자 수','연락처','구분','등록일','관리'].map(t=>h('th',t)))),
       h('tbody',...D.partners.map(p=>{
+        const pcs=D.pcontacts.filter(c=>c.pid===p.id&&c.status!=='inactive');
+        const primary=pcs.find(c=>c.isPrimary)||pcs[0];
         return h('tr',
-          h('td',{style:{fontWeight:600}},p.name),
-          h('td',p.cn||'-'),
-          h('td',{style:{fontSize:'12px'}},p.ph||'-'),
+          h('td',{style:{fontWeight:600,cursor:'pointer',color:'var(--acc)'},onClick:()=>nav('partnerd',{partner:p.id})},p.name),
+          h('td',primary?h('div',primary.name+(primary.pos?' · '+primary.pos:''),h('div',{style:{fontSize:'11px',color:'var(--t3)'}}),primary.dept||''):h('span',{style:{color:'var(--t3)'}},'미등록')),
+          h('td',{style:{textAlign:'center'}},h('span',{style:{background:'var(--bg0)',border:'1px solid var(--bd)',borderRadius:'12px',padding:'2px 8px',fontSize:'12px'}},pcs.length+'명')),
+          h('td',{style:{fontSize:'12px'}},primary?.ph||p.ph||'-'),
           h('td',p.type?mkBd('#6366f1',p.type,{fontSize:'11px'}):h('span','-')),
           h('td',{style:{fontSize:'12px',color:'var(--t3)'}},fmtD(p.ca)),
           h('td',h('div',{className:'fc'},
+            h('button',{className:'btn btn-s',onClick:()=>nav('partnerd',{partner:p.id})},'상세'),
             h('button',{className:'btn btn-s',onClick:()=>{D.modal={type:'partneredit',data:{...p}};render();}},'수정'),
             h('button',{className:'btn btn-s btn-d',onClick:async()=>{
               if(!confirm(p.name+' 삭제?'))return;
               D.partners=D.partners.filter(x=>x.id!==p.id);
               toast('삭제 완료');render();syncDeleteSheet('partners',p.id);
             }},'삭제'))));}))))));
+}
+
+// ═══ PARTNER DETAIL ═══
+function pgPartnerD(){
+  const pt=D.partners.find(p=>p.id===D.sp);
+  if(!pt)return h('div',{className:'mb',style:{textAlign:'center',paddingTop:'60px',color:'var(--t3)'}},'협력사 선택 필요');
+  const pcs=D.pcontacts.filter(c=>c.pid===pt.id);
+  const activePcs=pcs.filter(c=>c.status!=='inactive');
+  const tb=D.ptab;
+  const tabs={info:'기본정보',contacts:'담당자'};
+  return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
+    h('div',{className:'mh'},
+      h('span',{className:'tln',style:{fontSize:'12px'},onClick:()=>nav('partners')},'← 협력사 목록'),
+      h('div',{className:'fc'},
+        h('button',{className:'btn btn-s',onClick:()=>{D.modal={type:'partneredit',data:{...pt}};render();}},'✏️ 수정'),
+        h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'pcontact',pid:pt.id};render();}},'+ 담당자 등록'))),
+    h('div',{className:'mb'},
+      h('div',{style:{paddingBottom:'16px',borderBottom:'1px solid var(--bd)',marginBottom:'16px'}},
+        h('h2',{style:{fontSize:'20px',fontWeight:700,marginBottom:'6px',display:'flex',alignItems:'center',gap:'10px'}},
+          pt.name,' ',pt.type?mkBd('#6366f1',pt.type,{fontSize:'11px'}):null),
+        h('div',{style:{display:'flex',gap:'16px',fontSize:'12.5px',color:'var(--t2)',flexWrap:'wrap'}},
+          h('span','👥 담당자 '+activePcs.length+'명'),
+          pt.ph?h('span','📞 '+pt.ph):null,
+          pt.em?h('span','✉️ '+pt.em):null,
+          pt.addr?h('span','📍 '+pt.addr):null)),
+      h('div',{className:'tabs'},...Object.entries(tabs).map(([k,v])=>h('div',{className:'tab'+(tb===k?' a':''),onClick:()=>{D.ptab=k;render();}},v))),
+      // 기본정보 탭
+      tb==='info'?h('div',{style:{marginTop:'16px'}},
+        h('div',{className:'card'},
+          h('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'12px',fontSize:'13px'}},
+            h('div',h('div',{style:{color:'var(--t3)',fontSize:'11px',marginBottom:'2px'}},'구분'),h('div',pt.type||'-')),
+            h('div',h('div',{style:{color:'var(--t3)',fontSize:'11px',marginBottom:'2px'}},'연락처'),h('div',pt.ph||'-')),
+            h('div',h('div',{style:{color:'var(--t3)',fontSize:'11px',marginBottom:'2px'}},'이메일'),h('div',pt.em||'-')),
+            h('div',h('div',{style:{color:'var(--t3)',fontSize:'11px',marginBottom:'2px'}},'주소'),h('div',pt.addr||'-')),
+            pt.memo?h('div',{style:{gridColumn:'span 2'}},h('div',{style:{color:'var(--t3)',fontSize:'11px',marginBottom:'2px'}},'비고'),h('div',pt.memo)):null))
+      ):null,
+      // 담당자 탭
+      tb==='contacts'?h('div',{style:{marginTop:'16px'}},
+        pcs.length===0?h('div',{style:{textAlign:'center',padding:'40px',color:'var(--t3)',fontSize:'13px'}},'등록된 담당자가 없습니다.',h('div',{style:{marginTop:'12px'}},h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'pcontact',pid:pt.id};render();}},'+ 첫 번째 담당자 등록'))):
+        h('div',{className:'dt-wrap'},h('table',{className:'dt'},
+          h('thead',h('tr',...['이름','직책/부서','연락처','이메일','상태','관리'].map(t=>h('th',t)))),
+          h('tbody',...pcs.map(pc=>{
+            return h('tr',{style:{opacity:pc.status==='inactive'?0.45:1}},
+              h('td',h('div',{style:{display:'flex',alignItems:'center',gap:'6px'}},
+                pc.isPrimary?h('span',{style:{background:'#f59e0b22',color:'#f59e0b',border:'1px solid #f59e0b55',borderRadius:'10px',fontSize:'10px',padding:'1px 6px',fontWeight:600}},'대표'):null,
+                h('span',{style:{fontWeight:600}},pc.name))),
+              h('td',{style:{fontSize:'12px'}},[pc.pos,pc.dept].filter(Boolean).join(' / ')||'-'),
+              h('td',{style:{fontSize:'12px'}},pc.ph||'-'),
+              h('td',{style:{fontSize:'12px'}},pc.em||'-'),
+              h('td',pc.status==='inactive'?mkBd('#999','비활성',{fontSize:'11px'}):mkBd('#34d399','재직',{fontSize:'11px'})),
+              h('td',h('div',{className:'fc'},
+                !pc.isPrimary&&pc.status==='active'?h('button',{className:'btn btn-s',style:{fontSize:'11px'},onClick:()=>{
+                  // 기존 대표 해제 후 새로 지정
+                  D.pcontacts.filter(c=>c.pid===pt.id&&c.isPrimary).forEach(c=>{c.isPrimary=false;syncUpdateSheet('pcontacts',c.id,c);});
+                  pc.isPrimary=true;syncUpdateSheet('pcontacts',pc.id,pc);toast('대표 담당자 지정');render();
+                }},'대표지정'):null,
+                h('button',{className:'btn btn-s',onClick:()=>{D.modal={type:'pcontactedit',data:{...pc}};render();}},'수정'),
+                h('button',{className:'btn btn-s btn-d',style:{fontSize:'11px'},onClick:()=>{
+                  pc.status=pc.status==='inactive'?'active':'inactive';
+                  syncUpdateSheet('pcontacts',pc.id,pc);toast(pc.status==='inactive'?'비활성 처리':'활성 처리');render();
+                }},pc.status==='inactive'?'복원':'비활성'))));})))))
+      ):null));
 }
 
 // ═══ CUSTOMER DETAIL ═══
@@ -1458,6 +1529,46 @@ function renderModal(){
       close();toast(isE?'수정 완료':'등록 완료');
     });}
 
+  // Partner Contact Add / Edit
+  if(m.type==='pcontact'||m.type==='pcontactedit'){
+    const isE=m.type==='pcontactedit';const d=isE?m.data:{};
+    if(!m._f)m._f={name:d.name||'',dept:d.dept||'',pos:d.pos||'',ph:d.ph||'',em:d.em||'',note:d.note||'',isPrimary:d.isPrimary||false,status:d.status||'active'};
+    const mf=m._f;
+    const pt=D.partners.find(p=>p.id===(isE?d.pid:m.pid));
+    return ov(isE?'담당자 수정':'담당자 등록',h('div',
+      h('div',{style:{fontSize:'12px',color:'var(--t2)',marginBottom:'12px',padding:'8px 12px',background:'var(--bg0)',borderRadius:'6px',border:'1px solid var(--bd)'}},'🏢 '+( pt?.name||'')),
+      fg('이름',h('input',{className:'inp',value:mf.name,placeholder:'담당자 이름',onInput:e=>{mf.name=e.target.value;}}),1),
+      fg('직책',h('input',{className:'inp',value:mf.pos,placeholder:'예) 팀장, 과장',onInput:e=>{mf.pos=e.target.value;}})),
+      fg('부서',h('input',{className:'inp',value:mf.dept,placeholder:'예) 영업팀, 기술팀',onInput:e=>{mf.dept=e.target.value;}})),
+      fg('휴대폰',h('input',{className:'inp',value:mf.ph,placeholder:'010-0000-0000',onInput:e=>{mf.ph=e.target.value;}})),
+      fg('이메일',h('input',{className:'inp',type:'email',value:mf.em,placeholder:'example@company.com',onInput:e=>{mf.em=e.target.value;}})),
+      fg('비고',h('input',{className:'inp',value:mf.note,placeholder:'메신저, 특이사항 등',onInput:e=>{mf.note=e.target.value;}})),
+      h('div',{style:{display:'flex',gap:'12px',marginTop:'4px'}},
+        h('label',{style:{display:'flex',alignItems:'center',gap:'6px',fontSize:'13px',cursor:'pointer'}},
+          h('input',{type:'checkbox',checked:mf.isPrimary,onChange:e=>{mf.isPrimary=e.target.checked;}}),
+          '대표 담당자로 지정'),
+        isE?h('label',{style:{display:'flex',alignItems:'center',gap:'6px',fontSize:'13px',cursor:'pointer'}},
+          h('input',{type:'checkbox',checked:mf.status==='inactive',onChange:e=>{mf.status=e.target.checked?'inactive':'active';}}),
+          '비활성(퇴사)'):null)
+    ),()=>{
+      if(!mf.name){toast('이름을 입력하세요');return;}
+      if(!mf.ph&&!mf.em){toast('휴대폰 또는 이메일 중 하나를 입력하세요');return;}
+      if(mf.em&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mf.em)){toast('이메일 형식이 올바르지 않습니다');return;}
+      const pid=isE?d.pid:m.pid;
+      // 대표 담당자 지정 시 기존 대표 해제
+      if(mf.isPrimary){
+        D.pcontacts.filter(c=>c.pid===pid&&c.isPrimary&&(!isE||c.id!==d.id)).forEach(c=>{c.isPrimary=false;syncUpdateSheet('pcontacts',c.id,c);});
+      }
+      if(isE){
+        const pc=D.pcontacts.find(x=>x.id===d.id);
+        if(pc){Object.assign(pc,mf);syncUpdateSheet('pcontacts',d.id,pc);}
+      } else {
+        const nc={id:uid(),pid,...mf,ca:now()};
+        D.pcontacts.push(nc);syncToSheet('pcontacts',nc);
+      }
+      close();toast(isE?'수정 완료':'담당자 등록 완료');
+    });}
+
   // Partner
   if(m.type==='partner'||m.type==='partneredit'){
     const isE=m.type==='partneredit';const d=isE?m.data:{};
@@ -1526,7 +1637,7 @@ function renderModal(){
     const yrOpts=[];for(let y=new Date().getFullYear()+1;y>=2020;y--)yrOpts.push(y);
     // m._f 로 form 상태 유지 (re-render 시 초기화 방지)
     if(!m._f){
-      m._f={yr:d.yr||String(new Date().getFullYear()),cid:d.cid||m.custid||'',sid:d.sid||m.sid||'',pid:d.pid||'',oid:d.oid||D.curUser?.id||'',amt:d.amt||'',ecd:d.ecd||'',desc:d.desc||'',stage:d.stage||'lead'};
+      m._f={yr:d.yr||String(new Date().getFullYear()),cid:d.cid||m.custid||'',sid:d.sid||m.sid||'',pid:d.pid||'',pcid:d.pcid||'',oid:d.oid||D.curUser?.id||'',amt:d.amt||'',ecd:d.ecd||'',desc:d.desc||'',stage:d.stage||'lead'};
       const iCust=m._f.cid?D.custs.find(c=>c.id===m._f.cid):null;
       m._custText=iCust?.name||'';
       const iPt=m._f.pid?D.partners.find(p=>p.id===m._f.pid):null;
@@ -1560,7 +1671,14 @@ function renderModal(){
       ),1),
       fg('고객사',mkAc(D.custs,'_custText','cid','고객사명 검색 또는 직접 입력...'),1),
       fg('협력사',mkAc(D.partners,'_ptText','pid','협력사명 검색 (없으면 공백)')),
-      fg('담당자',h('select',{className:'inp',onChange:e=>{mf.oid=e.target.value;}},...D.users.map(u=>h('option',{value:u.id,selected:u.id===mf.oid},u.name)))),
+      (()=>{
+        const ptContacts=mf.pid?D.pcontacts.filter(c=>c.pid===mf.pid&&c.status!=='inactive'):[];
+        return ptContacts.length>0?fg('협력사 담당자',h('select',{className:'inp',onChange:e=>{mf.pcid=e.target.value;}},
+          h('option',{value:''},'담당자 선택 (선택사항)'),
+          ...ptContacts.map(c=>h('option',{value:c.id,selected:c.id===mf.pcid},[c.name,c.pos,c.dept].filter(Boolean).join(' · ')))
+        )):null;
+      })(),
+      fg('담당자',h('select',{className:'inp',onChange:e=>{mf.oid=e.target.value;}},...D.users.filter(u=>u.role==='sales').map(u=>h('option',{value:u.id,selected:u.id===mf.oid},u.name)))),
       isE?fg('단계',h('select',{className:'inp',onChange:e=>{mf.stage=e.target.value;}},...STG.map(s=>h('option',{value:s.id,selected:s.id===mf.stage},s.i+' '+s.l)))):null,
       fg('예상금액 (원)',amtInp(mf,'amt',mf.amt)),
       fg('예상 완료일',h('input',{className:'inp',type:'date',value:mf.ecd||'',onInput:e=>{mf.ecd=e.target.value;}})),
@@ -1579,8 +1697,8 @@ function renderModal(){
         D.partners.unshift(np);syncToSheet('partners',np);pid=np.id;
       }
       if(!cid||!sid){toast('고객/솔루션을 선택하세요');return;}
-      if(isE){const c=D.ctxs.find(x=>x.id===d.id);if(c){c.cid=cid;c.sid=sid;c.pid=pid||'';c.oid=mf.oid||c.oid;c.stage=mf.stage||c.stage;c.amt=Number(mf.amt)||0;c.ecd=mf.ecd||'';c.yr=mf.yr||'';c.desc=mf.desc||'';syncUpdateSheet('ctxs',d.id,c);}close();toast('수정 완료');}
-      else{const id=uid();const nd={id,cid,sid,pid:pid||'',oid:mf.oid||D.curUser?.id||'u1',stage:'lead',amt:Number(mf.amt)||0,ecd:mf.ecd||'',yr:mf.yr||'',desc:mf.desc||''};D.ctxs.push(nd);syncToSheet('ctxs',nd);
+      if(isE){const c=D.ctxs.find(x=>x.id===d.id);if(c){c.cid=cid;c.sid=sid;c.pid=pid||'';c.pcid=mf.pcid||'';c.oid=mf.oid||c.oid;c.stage=mf.stage||c.stage;c.amt=Number(mf.amt)||0;c.ecd=mf.ecd||'';c.yr=mf.yr||'';c.desc=mf.desc||'';syncUpdateSheet('ctxs',d.id,c);}close();toast('수정 완료');}
+      else{const id=uid();const nd={id,cid,sid,pid:pid||'',pcid:mf.pcid||'',oid:mf.oid||D.curUser?.id||'u1',stage:'lead',amt:Number(mf.amt)||0,ecd:mf.ecd||'',yr:mf.yr||'',desc:mf.desc||''};D.ctxs.push(nd);syncToSheet('ctxs',nd);
       addAct(id,'CUSTOMER_CREATED','영업 컨텍스트 생성',mf.desc||'');close();toast('등록 완료');}
     });}
 
@@ -1591,17 +1709,25 @@ function renderModal(){
     const baseCtxL=m.scidFixed?D.ctxs.filter(c=>c.id===m.scidFixed):m.sid?D.ctxs.filter(c=>c.sid===m.sid):D.ctxs;
     const ctxL=m.scidFixed?baseCtxL:(m._yr?baseCtxL.filter(c=>c.yr===m._yr):baseCtxL);
     if(m.scidFixed&&!f.scid)f.scid=m.scidFixed;
+    // 선택된 컨텍스트의 협력사 담당자 목록
+    const curScid=m.scidFixed||f.scid;
+    const curCtx=curScid?D.ctxs.find(c=>c.id===curScid):null;
+    const actPContacts=curCtx?.pid?D.pcontacts.filter(c=>c.pid===curCtx.pid&&c.status!=='inactive'):[];
     return ov('활동 기록',h('div',
-      m.scidFixed?null:fg('영업연도',h('select',{className:'inp',onChange:e=>{m._yr=e.target.value;f.scid='';render();}},h('option',{value:''},'전체'),...yrOpts.map(y=>h('option',{value:String(y),selected:String(y)===m._yr},y+'년'))),1),
+      m.scidFixed?null:fg('영업연도',h('select',{className:'inp',onChange:e=>{m._yr=e.target.value;f.scid='';f.pcid='';render();}},h('option',{value:''},'전체'),...yrOpts.map(y=>h('option',{value:String(y),selected:String(y)===m._yr},y+'년'))),1),
       m.scidFixed?h('div',{className:'fg'},h('label','영업 컨텍스트'),h('div',{style:{padding:'8px 12px',background:'var(--bg0)',borderRadius:'6px',border:'1px solid var(--bd)',fontSize:'13px',color:'var(--t2)'}},function(){const ctx=D.ctxs.find(c=>c.id===m.scidFixed);const cu=D.custs.find(c=>c.id===ctx?.cid);const sol=gS(ctx?.sid);return (cu?.name||'?')+' - '+(sol?.name||'?');}())):
-      fg('영업 컨텍스트',h('select',{className:'inp',onChange:e=>{f.scid=e.target.value;}},h('option',{value:''},'선택...'),...ctxL.map(ctx=>{const c=D.custs.find(x=>x.id===ctx.cid),s=gS(ctx.sid);return h('option',{value:ctx.id},(c?.name||'?')+' - '+(s?.name||'?'));})),1),
+      fg('영업 컨텍스트',h('select',{className:'inp',onChange:e=>{f.scid=e.target.value;f.pcid='';render();}},h('option',{value:''},'선택...'),...ctxL.map(ctx=>{const c=D.custs.find(x=>x.id===ctx.cid),s=gS(ctx.sid);return h('option',{value:ctx.id},(c?.name||'?')+' - '+(s?.name||'?'));})),1),
+      actPContacts.length>0?fg('협력사 담당자',h('select',{className:'inp',onChange:e=>{f.pcid=e.target.value;}},
+        h('option',{value:''},'담당자 선택 (선택사항)'),
+        ...actPContacts.map(c=>h('option',{value:c.id,selected:c.id===f.pcid},[c.name,c.pos,c.dept].filter(Boolean).join(' · ')))
+      )):null,
       fg('활동 유형',h('select',{className:'inp',onChange:e=>{f.type=e.target.value;}},...['MEETING','CALL','EMAIL','MEMO','PROPOSAL_UPLOADED'].map(k=>h('option',{value:k},(EV[k]||['',''])[0]+' '+(EV[k]||['',''])[1])))),
       fg('제목',h('input',{className:'inp',onInput:e=>{f.title=e.target.value;}}),1),
       fg('내용',h('textarea',{className:'inp',onInput:e=>{f.ct=e.target.value;}}))
     ),()=>{
       const scid=m.scidFixed||f.scid;
       if(!scid||!f.title){toast('필수 입력');return;}
-      var na={id:uid(),scid,type:f.type||'MEETING',title:f.title,ct:f.ct||'',oid:D.curUser?.id||'u1',ca:now()};D.acts.unshift(na);syncToSheet('acts',na);
+      var na={id:uid(),scid,type:f.type||'MEETING',title:f.title,ct:f.ct||'',pcid:f.pcid||'',oid:D.curUser?.id||'u1',ca:now()};D.acts.unshift(na);syncToSheet('acts',na);
       close();toast('기록 완료');
     });}
 
@@ -1757,13 +1883,14 @@ var API={
 };
 
 // Sheet name mapping (D key -> Sheet name)
-var SM={sols:'Solutions',custs:'Customers',partners:'Partners',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users',stages:'Stages'};
+var SM={sols:'Solutions',custs:'Customers',partners:'Partners',pcontacts:'PartnerContacts',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users',stages:'Stages'};
 // Field mapping (D short keys -> Sheet full keys)
 var FM={
   custs:{cn:'contactName',ph:'phone',em:'email',addr:'address',ca:'createdAt'},
   partners:{cn:'contactName',ph:'phone',em:'email',addr:'address',ca:'createdAt'},
-  ctxs:{cid:'customerId',sid:'solutionId',pid:'partnerId',oid:'ownerId',amt:'expectedAmount',ecd:'expectedCloseDate',yr:'salesYear',desc:'description'},
-  acts:{scid:'salesContextId',ct:'content',oid:'ownerId',ca:'createdAt'},
+  pcontacts:{pid:'partnerId',dept:'department',pos:'position',ph:'phone',em:'email',note:'note',isPrimary:'isPrimary',status:'status',ca:'createdAt'},
+  ctxs:{cid:'customerId',sid:'solutionId',pid:'partnerId',pcid:'partnerContactId',oid:'ownerId',amt:'expectedAmount',ecd:'expectedCloseDate',yr:'salesYear',desc:'description'},
+  acts:{scid:'salesContextId',pcid:'partnerContactId',ct:'content',oid:'ownerId',ca:'createdAt'},
   cts:{scid:'salesContextId',amt:'amount',sd:'startDate',ed:'endDate',st:'status'},
   revs:{ctid:'contractId',amt:'amount',rd:'revenueDate',st:'status'},
   sols:{desc:'description',ca:'createdAt'},
@@ -1802,6 +1929,7 @@ async function loadAllFromSheets(onProgress){
       if(dk==='ctxs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='cts')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='revs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
+      if(dk==='pcontacts')D[dk].forEach(r=>{r.isPrimary=r.isPrimary===true||r.isPrimary==='true'||r.isPrimary==='TRUE';});
     }
   }
   if(onProgress)onProgress(100,'완료');
