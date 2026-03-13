@@ -1911,11 +1911,15 @@ function fromSheet(key,obj){
 }
 
 async function loadAllFromSheets(onProgress){
-  const entries=Object.entries(SM);const total=entries.length;
-  for(let i=0;i<entries.length;i++){
-    const [dk,sn]=entries[i];
-    if(onProgress)onProgress(Math.round((i/total)*90),sn+'  로딩 중...');
-    const rows=await API.get(sn);
+  const entries=Object.entries(SM);
+  if(onProgress)onProgress(10,'데이터 로딩 중...');
+  // 병렬 fetch: 모든 시트를 동시에 요청하여 속도 개선
+  const results=await Promise.all(entries.map(async([dk,sn])=>{
+    try{const rows=await API.get(sn);return {dk,rows};}
+    catch(e){return {dk,rows:[]};}
+  }));
+  if(onProgress)onProgress(80,'데이터 처리 중...');
+  for(const {dk,rows} of results){
     if(rows){
       let mapped=rows.map(r=>fromSheet(dk,r));
       if(dk==='users') mapped=mapped.map(normalizeUserRow).filter(u=>normAuth(u.loginId)&&normAuth(u.pw));
