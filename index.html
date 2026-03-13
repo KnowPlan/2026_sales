@@ -296,10 +296,30 @@ input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1);cursor:po
   .login-box{width:calc(100% - 32px)!important;padding:28px 20px!important}
   .setup-box{width:calc(100% - 32px)!important;padding:24px 16px!important}
 }
+/* ── Loading Screen ── */
+.lw{position:fixed;inset:0;background:var(--bg2);display:flex;align-items:center;justify-content:center;z-index:9999;background-image:radial-gradient(ellipse at 30% 50%,rgba(99,102,241,.08) 0%,transparent 70%),radial-gradient(ellipse at 70% 50%,rgba(14,165,233,.06) 0%,transparent 70%)}
+.lbox{display:flex;flex-direction:column;align-items:center;gap:20px;padding:40px 32px;text-align:center}
+.llogo{width:52px;height:52px;background:linear-gradient(135deg,#6366f1,#0ea5e9);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;box-shadow:0 8px 32px rgba(99,102,241,.35);margin-bottom:4px}
+.lspinner{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:lspin .75s linear infinite}
+@keyframes lspin{to{transform:rotate(360deg)}}
+.ltitle{font-size:17px;font-weight:700;color:var(--t1);letter-spacing:-.3px}
+.lmsg{font-size:12.5px;color:var(--t3);min-height:18px;transition:opacity .2s}
+.lpwrap{width:220px;height:3px;background:var(--bd);border-radius:2px;overflow:hidden}
+.lpbar{height:100%;background:linear-gradient(90deg,var(--ac),var(--ac2));border-radius:2px;transition:width .35s ease;width:0%}
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div class="lw">
+    <div class="lbox">
+      <div class="llogo">S</div>
+      <div class="ltitle">영업관리 시스템</div>
+      <div class="lspinner"></div>
+      <div class="lpwrap"><div class="lpbar" id="lp-bar"></div></div>
+      <div class="lmsg" id="lp-msg">시스템 초기화 중...</div>
+    </div>
+  </div>
+</div>
 <script>
 
 // ═══════════════════════════════════
@@ -1763,8 +1783,11 @@ function fromSheet(key,obj){
   return out;
 }
 
-async function loadAllFromSheets(){
-  for(const [dk,sn] of Object.entries(SM)){
+async function loadAllFromSheets(onProgress){
+  const entries=Object.entries(SM);const total=entries.length;
+  for(let i=0;i<entries.length;i++){
+    const [dk,sn]=entries[i];
+    if(onProgress)onProgress(Math.round((i/total)*90),sn+'  로딩 중...');
     const rows=await API.get(sn);
     if(rows){
       let mapped=rows.map(r=>fromSheet(dk,r));
@@ -1772,16 +1795,16 @@ async function loadAllFromSheets(){
       if(dk==='stages'){
         mapped=mapped.sort((a,b)=>Number(a.ord||0)-Number(b.ord||0));
         mapped.forEach(s=>{delete s.ord;});
-        if(mapped.length>0) D[dk]=mapped; // 빈 경우 기본값 유지
+        if(mapped.length>0) D[dk]=mapped;
       } else {
         D[dk]=mapped;
       }
-      // Convert numeric fields
       if(dk==='ctxs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='cts')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='revs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
     }
   }
+  if(onProgress)onProgress(100,'완료');
 }
 
 function rebindCurrentUser(){
@@ -1996,13 +2019,22 @@ function doRenderSetupInline(C){
 }
 
 // ═══ INIT ═══
+function setLoadProgress(pct,msg){
+  const bar=document.getElementById('lp-bar');
+  const txt=document.getElementById('lp-msg');
+  if(bar)bar.style.width=pct+'%';
+  if(txt)txt.textContent=msg||'';
+}
+
 async function init(){
   let authStatus=null;
+  setLoadProgress(5,'서버 연결 확인 중...');
   try{
     authStatus=await API.checkAuth();
     if(authStatus.authenticated&&authStatus.spreadsheetId){
       API.mode='sheets';
-      await loadAllFromSheets();
+      setLoadProgress(10,'데이터 불러오는 중...');
+      await loadAllFromSheets(setLoadProgress);
       if(restoreSessionFromStorage()){render();return;}
       D.pg='dashboard';render();return;
     }
