@@ -21,7 +21,7 @@ function ssId() {
   return id.trim();
 }
 
-/** 시트 전체 행을 객체 배열로 반환 (시트 없으면 [] 반환) */
+/** 시트 전체 행을 객체 배열로 반환 (시트 없거나 에러 시 [] 반환) */
 async function readAll(sheetName) {
   try {
     const r = await sheets().spreadsheets.values.get({
@@ -35,8 +35,14 @@ async function readAll(sheetName) {
       Object.fromEntries(headers.map((h, i) => [h, row[i] ?? '']))
     );
   } catch (e) {
-    if (e.code === 400 || e.status === 400) return [];
-    throw e;
+    // 시트 없음(400), 권한 오류, 기타 모든 에러 → 빈 배열 반환 (앱 초기화 블록 방지)
+    const code = e.code || e.status || (e.response && e.response.status);
+    if (code === 400 || code === '400' || code === 404 ||
+        (e.message && (e.message.includes('Unable to parse range') || e.message.includes('not found')))) {
+      return [];
+    }
+    console.error('[sheets] readAll error:', sheetName, code, e.message);
+    return []; // 모든 에러에서 빈 배열 반환
   }
 }
 

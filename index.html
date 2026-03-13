@@ -1845,9 +1845,12 @@ function renderModal(){
 // ═══ DB ABSTRACTION LAYER ═══
 async function apiRequest(method,url,body){
   try{
-    const options={method};
+    const ctrl=new AbortController();
+    const timer=setTimeout(()=>ctrl.abort(),12000);
+    const options={method,signal:ctrl.signal};
     if(body!==undefined){options.headers={'Content-Type':'application/json'};options.body=JSON.stringify(body);}
     const r=await fetch(url,options);
+    clearTimeout(timer);
     let d=null;
     try{d=await r.json();}catch(e){d=null;}
     if(!r.ok||(d&&d.success===false))return {ok:false,status:r.status,error:(d&&d.error)||('HTTP '+r.status)};
