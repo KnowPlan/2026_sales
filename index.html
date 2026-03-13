@@ -952,7 +952,7 @@ function pgTL(mode){
 // ═══ CUSTOMERS ═══
 function pgCusts(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    h('div',{className:'mh'},h('h1','🏢 고객관리'),h('button',{className:'btn btn-p btn-s mh-reg',onClick:()=>{D.modal={type:'customer'};render();}},'+ 고객 등록')),
+    h('div',{className:'mh'},h('h1','🏢 고객관리'),h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'customer'};render();}},'+ 고객 등록')),
     h('div',{className:'mb'},h('div',{className:'dt-wrap'},h('table',{className:'dt'},
       h('thead',h('tr',...['회사명','담당자','연락처','구분','솔루션','등록일','관리'].map(t=>h('th',t)))),
       h('tbody',...D.custs.map(c=>{const cc=D.ctxs.filter(x=>x.cid===c.id);
@@ -976,7 +976,7 @@ function pgCusts(){
 const PT={SI:'SI',리셀러:'리셀러',총판:'총판',기타:'기타'};
 function pgPartners(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    h('div',{className:'mh'},h('h1','🤝 협력사'),h('button',{className:'btn btn-p btn-s mh-reg',onClick:()=>{D.modal={type:'partner'};render();}},'+ 협력사 등록')),
+    h('div',{className:'mh'},h('h1','🤝 협력사'),h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'partner'};render();}},'+ 협력사 등록')),
     h('div',{className:'mb'},h('div',{className:'dt-wrap'},h('table',{className:'dt'},
       h('thead',h('tr',...['회사명','담당자','연락처','구분','등록일','관리'].map(t=>h('th',t)))),
       h('tbody',...D.partners.map(p=>{
@@ -1121,9 +1121,9 @@ function pgRevs(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
     h('div',{className:'mh'},
       h('h1','💰 매출'),
-      h('div',{className:'fc',style:{gap:'8px'}},
-        mkSolSel(),
-        h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'revenue',sid:sf};render();}},'+ 매출 등록'))),
+      h('div',{className:'fc mh-filters',style:{gap:'8px'}},
+        mkSolSel()),
+      h('button',{className:'btn btn-p btn-s mh-reg',onClick:()=>{D.modal={type:'revenue',sid:sf};render();}},'+ 매출 등록')),
     h('div',{className:'mb'},
       h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'14px',marginBottom:'20px'}},mkKPI('확정',fmt(cf)+'원',null,'#34d399'),mkKPI('대기',fmt(pd)+'원',null,'#fbbf24'),mkKPI('총매출',fmt(cf+pd)+'원')),
       h('table',{className:'dt'},h('thead',h('tr',...['계약','매출일','금액','상태','비고','관리'].map(t=>h('th',t)))),
@@ -1136,7 +1136,7 @@ function pgRevs(){
 // ═══ SOLUTION MANAGEMENT ═══
 function pgSolMgr(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    h('div',{className:'mh'},h('h1','🔧 솔루션 관리'),h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'solution'};render();}},'+ 솔루션 추가')),
+    h('div',{className:'mh'},h('h1','🔧 솔루션 관리'),h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'solution'};render();}},'+ 솔루션 추가')),
     h('div',{className:'mb'},h('div',{className:'dt-wrap'},h('table',{className:'dt'},
       h('thead',h('tr',...['색상','솔루션명','설명','영업건수','관리'].map(t=>h('th',t)))),
       h('tbody',...D.sols.map(sol=>h('tr',
@@ -1167,7 +1167,7 @@ function pgStageMgr(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
     h('div',{className:'mh'},
       h('h1','🔀 단계 관리'),
-      h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'stageadd'};render();}},'+ 단계 추가')),
+      h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'stageadd'};render();}},'+ 단계 추가')),
     h('div',{className:'mb'},
       h('div',{style:{background:'rgba(99,102,241,.07)',border:'1px solid rgba(99,102,241,.18)',borderRadius:'10px',padding:'13px 16px',marginBottom:'20px',fontSize:'12.5px',color:'var(--t2)',lineHeight:'1.75'}},
         h('b',{style:{color:'var(--ac2)'}},'💡 안내 '),
@@ -1220,7 +1220,7 @@ function pgStageMgr(){
 function pgUsers(){
   return h('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
     h('div',{className:'mh'},h('h1','⚙️ 시스템관리'),
-      h('button',{className:'btn btn-p btn-s',onClick:()=>{D.modal={type:'useradd'};render();}},'+ 사용자 추가')),
+      h('button',{className:'btn btn-p btn-s mh-reg',style:{marginLeft:'auto'},onClick:()=>{D.modal={type:'useradd'};render();}},'+ 사용자 추가')),
     h('div',{className:'mb'},
       h('div',{style:{marginBottom:'20px',padding:'14px',background:'var(--bg0)',borderRadius:'10px',border:'1px solid var(--bd)',display:'flex',alignItems:'center',justifyContent:'space-between'}},
         h('div',h('div',{style:{fontSize:'12px',fontWeight:600,color:'var(--t2)',marginBottom:'4px'}},'📊 데이터 저장소'),
