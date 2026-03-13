@@ -1082,7 +1082,7 @@ function pgPartnerD(){
                 h('button',{className:'btn btn-s btn-d',style:{fontSize:'11px'},onClick:()=>{
                   pc.status=pc.status==='inactive'?'active':'inactive';
                   syncUpdateSheet('pcontacts',pc.id,pc);toast(pc.status==='inactive'?'비활성 처리':'활성 처리');render();
-                }},pc.status==='inactive'?'복원':'비활성'))));})))))
+                }},pc.status==='inactive'?'복원':'비활성'))));}))))
       ):null));
 }
 
