@@ -858,10 +858,12 @@ function pgSList(){
   sc.forEach(ctx=>{
     const cu=D.custs.find(c=>c.id===ctx.cid);
     const sol=gS(ctx.sid);
+    const pt=ctx.pid?D.partners.find(p=>p.id===ctx.pid):null;
     const isSelected=D.pipePanel===ctx.id;
     const tr=h('tr',{style:isSelected?{background:'rgba(99,102,241,.08)',borderLeft:'3px solid var(--ac)'}:{}},
       h('td',{style:{fontWeight:600,cursor:'pointer',color:isSelected?'var(--ac2)':''}},cu?.name||'?'),
       sol?h('td',mkBd(sol.color,sol.name,{fontSize:'11px'})):h('td','-'),
+      h('td',{style:{fontSize:'12px',color:'var(--t2)'}},pt?pt.name:'-'),
       h('td',{style:{fontSize:'12px',color:'var(--t2)'}},ctx.yr?(ctx.yr+'년'):'-'),
       h('td',mkSBd(ctx.stage)),
       h('td',gU(ctx.oid)?.name||''),
@@ -875,12 +877,12 @@ function pgSList(){
     });
     tbody.appendChild(tr);
   });
-  if(sc.length===0)tbody.appendChild(h('tr',h('td',{colSpan:8,style:{textAlign:'center',padding:'30px',color:'var(--t3)'}},'📭 영업 데이터 없음')));
+  if(sc.length===0)tbody.appendChild(h('tr',h('td',{colSpan:9,style:{textAlign:'center',padding:'30px',color:'var(--t3)'}},'📭 영업 데이터 없음')));
 
   const gridArea=h('div',{className:'mb'},
     h('div',{className:'dt-wrap'},
       h('table',{className:'dt'},
-        h('thead',h('tr',...['고객사','솔루션','영업연도','단계','담당자','예상금액','예상일','설명'].map(t=>h('th',t)))),
+        h('thead',h('tr',...['고객사','솔루션','협력사','영업연도','단계','담당자','예상금액','예상일','설명'].map(t=>h('th',t)))),
         tbody)));
 
   // ── 모바일: 그리드 아래 패널 ──
