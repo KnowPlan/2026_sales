@@ -507,7 +507,7 @@ function triggerFileUpload(targetType,targetId){
   if(!inp){
     inp=document.createElement('input');
     inp.type='file';inp.id='_att-file-input';inp.style.display='none';
-    inp.accept='.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt,.ppt,.pptx,.zip,.hwp';
+    // 확장자 제한 없음 (모든 파일 허용)
     document.body.appendChild(inp);
     inp.addEventListener('change',handleFileSelected);
   }
@@ -519,8 +519,8 @@ function triggerFileUpload(targetType,targetId){
 async function handleFileSelected(e){
   const file=e.target.files[0];
   if(!file)return;
-  const MAX=3.5*1024*1024;
-  if(file.size>MAX){toast('파일은 3.5MB 이하만 첨부 가능합니다.');return;}
+  const MAX=10*1024*1024;
+  if(file.size>MAX){toast('파일은 10MB 이하만 첨부 가능합니다.');return;}
   const {targetType,targetId}=e.target._attTarget||{};
   if(!targetType||!targetId)return;
   D._attUpload={targetType,targetId,loading:true};
