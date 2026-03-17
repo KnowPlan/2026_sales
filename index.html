@@ -2298,17 +2298,21 @@ function renderModal(){
         // 1) Drive 저장 (PDF 업로드)
         const attId=await saveQuoteToDrive(q,previewHtml,true);
         // 2) 이메일 발송
-        const r=await fetch('/api/quotes/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteId:q.id,to:sf.to,subject:sf.subject,body:sf.body,quoteHtml:previewHtml,fileName:q.quoteNo+'.pdf',quoteTitle:q.title})});
-        const res=await r.json();
-        if(!res.success){sf.err=res.error||'발송 실패';sf.sending=false;render();return;}
+        let res;
+        try{
+          const r=await fetch('/api/quotes/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteId:q.id,to:sf.to,subject:sf.subject,body:sf.body,quoteHtml:previewHtml,fileName:q.quoteNo+'.html',quoteTitle:q.title})});
+          res=await r.json();
+        }catch(fe){sf.err='네트워크 오류: '+fe.message;sf.sending=false;render();toast('❌ '+sf.err);return;}
+        if(res.needsReauth){sf.err='Gmail 재인증 필요: /api/auth/login 에서 다시 인증해주세요';sf.sending=false;render();toast('❌ Gmail 재인증 필요');return;}
+        if(!res.success){sf.err=res.error||'발송 실패';sf.sending=false;render();toast('❌ '+sf.err);return;}
         // 3) 발송 이력 저장
         const lg={id:uid(),qid:q.id,em:sf.to,sub:sf.subject,ca:now(),sb:D.curUser?.id||''};
         D.quoteLogs.push(lg);syncToSheet('quoteLogs',lg);
         // 4) 상태 업데이트
         q.status='sent';q.lastSentAt=now();syncUpdateSheet('quotes',q.id,q);
         if(q.scid)addAct(q.scid,'견적서 발송','📧 견적서 발송: '+q.title,'수신: '+sf.to);
-        toast('발송 완료!');close();
-      }catch(e){sf.err='오류: '+e.message;sf.sending=false;render();}
+        toast('✅ 발송 완료! → '+sf.to);close();
+      }catch(e){sf.err='오류: '+e.message;sf.sending=false;render();toast('❌ '+sf.err);}
     },sf.sending?'발송 중...':null);}
 
   return null;

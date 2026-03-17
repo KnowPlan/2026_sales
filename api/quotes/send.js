@@ -57,11 +57,20 @@ module.exports = async (req, res) => {
 
   try {
     const { quoteId, to, subject, body, quoteHtml, fileName } = req.body || {};
+    console.log('[quotes/send] 요청 수신 - to:', to, '| subject:', subject, '| quoteId:', quoteId);
+
     if (!to || !subject || !quoteHtml) {
-      return res.status(400).json({ success: false, error: '필수 파라미터가 없습니다.' });
+      return res.status(400).json({ success: false, error: '필수 파라미터가 없습니다. (to, subject, quoteHtml 필요)' });
     }
 
-    const auth = getOAuth2();
+    let auth;
+    try {
+      auth = getOAuth2();
+    } catch (e) {
+      console.error('[quotes/send] OAuth 초기화 실패:', e.message);
+      return res.status(500).json({ success: false, error: 'OAuth 설정 오류: ' + e.message });
+    }
+
     const gmail = google.gmail({ version: 'v1', auth });
 
     // 발신자 이메일 조회
@@ -69,12 +78,15 @@ module.exports = async (req, res) => {
     try {
       const profile = await gmail.users.getProfile({ userId: 'me' });
       fromEmail = profile.data.emailAddress || '';
+      console.log('[quotes/send] 발신자 이메일:', fromEmail);
     } catch (e) {
-      // Gmail API 미인증 시 graceful fallback
-      if (e.message && e.message.includes('insufficient')) {
+      console.error('[quotes/send] getProfile 실패:', e.code, e.message);
+      // 403 / insufficient scope / access denied 모두 재인증 안내
+      const msg = (e.message || '').toLowerCase();
+      if (e.code === 403 || msg.includes('insufficient') || msg.includes('access denied') || msg.includes('forbidden')) {
         return res.status(403).json({
           success: false,
-          error: 'Gmail API 권한이 없습니다. Google Cloud Console에서 gmail.send 스코프를 추가하고 재인증 해주세요.',
+          error: 'Gmail 권한이 없습니다. /api/auth/login 에서 gmail.send 스코프를 포함하여 재인증 해주세요.',
           needsReauth: true,
         });
       }
@@ -90,14 +102,17 @@ module.exports = async (req, res) => {
       attachmentName: fileName || 'quote.html',
     });
 
+    console.log('[quotes/send] MIME 생성 완료, Gmail API 발송 시작...');
+
     await gmail.users.messages.send({
       userId: 'me',
       requestBody: { raw: b64url(mime) },
     });
 
+    console.log('[quotes/send] 발송 성공 - to:', to);
     return res.json({ success: true });
   } catch (e) {
-    console.error('[quotes/send] error:', e.message);
+    console.error('[quotes/send] 최종 오류:', e.code, e.message);
     return res.status(500).json({ success: false, error: e.message });
   }
 };
