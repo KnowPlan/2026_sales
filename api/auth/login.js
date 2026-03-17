@@ -18,6 +18,7 @@ module.exports = async (req, res) => {
       scope: [
         'https://www.googleapis.com/auth/spreadsheets',
         'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/gmail.send',
       ],
       prompt: 'consent',
       state,
@@ -52,6 +53,7 @@ h2{color:#fbbf24}code{background:#1c1c26;padding:2px 8px;border-radius:4px;font-
     scope: [
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/gmail.send',
     ],
     prompt: 'consent',
     state,
