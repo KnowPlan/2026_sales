@@ -1,14 +1,44 @@
 'use strict';
 const { google } = require('googleapis');
 
-// 시스템 전체에서 필요한 스코프 (Sheets + Drive + Gmail 통합)
-// drive.file: 앱이 생성한 파일/폴더만 접근 (Sensitive) — 미검증 앱 사용 가능
-// drive: 전체 Drive 접근 (Restricted) — Google 앱 검증 필요, 사용 불가
-const REQUIRED_SCOPES = [
+// 시스템 전체에서 필요한 스코프 (Sheets + Drive.file + Gmail)
+// drive.file : Sensitive — 미검증 앱 사용 가능
+// drive      : Restricted — Google 앱 검증 필요 (사용 불가)
+const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/gmail.send',
 ];
+// Google OAuth는 scope를 공백 구분 문자열로 받음 (배열도 내부적으로 join하지만 명시적으로 지정)
+const SCOPE_STRING = SCOPES.join(' ');
+
+function buildAuthUrl(clientId, clientSecret, redirectUri, state) {
+  const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+  const url = auth.generateAuthUrl({
+    access_type: 'offline',
+    scope: SCOPE_STRING,   // 명시적 공백 구분 문자열
+    prompt: 'consent',
+    state,
+  });
+
+  // ── 진단 로그 (Vercel 런타임 로그에서 확인) ──
+  console.log('[auth/login] redirect_uri :', redirectUri);
+  console.log('[auth/login] scope        :', SCOPE_STRING);
+  console.log('[auth/login] authUrl      :', url);
+
+  // authUrl에서 scope 파라미터만 추출해서 재검증
+  try {
+    const parsed = new URL(url);
+    const scopeParam = parsed.searchParams.get('scope');
+    console.log('[auth/login] scope param in URL:', scopeParam);
+    const redirectParam = parsed.searchParams.get('redirect_uri');
+    console.log('[auth/login] redirect_uri in URL:', redirectParam);
+  } catch (e) {
+    console.error('[auth/login] URL 파싱 실패:', e.message);
+  }
+
+  return url;
+}
 
 module.exports = async (req, res) => {
 
@@ -18,16 +48,10 @@ module.exports = async (req, res) => {
     if (!clientId || !clientSecret) {
       return res.status(400).json({ error: 'clientId와 clientSecret을 입력하세요.' });
     }
-    const redirectUri = process.env.OAUTH_REDIRECT_URI || `https://${req.headers.host}/api/auth/callback`;
-    const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-    // state에 credentials 인코딩 (콜백에서 복원)
+    const redirectUri = process.env.OAUTH_REDIRECT_URI
+      || `https://${req.headers.host}/api/auth/callback`;
     const state = Buffer.from(JSON.stringify({ clientId, clientSecret })).toString('base64');
-    const authUrl = auth.generateAuthUrl({
-      access_type: 'offline',
-      scope: REQUIRED_SCOPES,
-      prompt: 'consent',
-      state,
-    });
+    const authUrl = buildAuthUrl(clientId, clientSecret, redirectUri, state);
     return res.json({ authUrl });
   }
 
@@ -50,15 +74,11 @@ h2{color:#fbbf24}code{background:#1c1c26;padding:2px 8px;border-radius:4px;font-
 </body></html>`);
   }
 
-  const redirectUri = process.env.OAUTH_REDIRECT_URI || `https://${req.headers.host}/api/auth/callback`;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI
+    || `https://${req.headers.host}/api/auth/callback`;
   const state = Buffer.from(JSON.stringify({ clientId, clientSecret })).toString('base64');
-  const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
-  const authUrl = auth.generateAuthUrl({
-    access_type: 'offline',
-    scope: REQUIRED_SCOPES,
-    prompt: 'consent',
-    state,
-  });
+  const authUrl = buildAuthUrl(clientId, clientSecret, redirectUri, state);
+
   res.writeHead(302, { Location: authUrl });
   res.end();
 };
