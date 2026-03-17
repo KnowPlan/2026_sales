@@ -136,6 +136,13 @@ textarea.inp{resize:vertical;min-height:80px}
 .gs-clr{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:14px;padding:2px;display:none}.gs-clr:hover{color:var(--t1)}
 .gs-inp:not(:placeholder-shown)~.gs-clr{display:block}
 .sr-cat{font-size:12px;font-weight:600;color:var(--t3);padding:12px 0 6px;border-bottom:1px solid var(--bd);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+/* 첨부파일 */
+.att-section{margin-top:8px;padding-top:8px;border-top:1px solid rgba(45,45,58,.5);}
+.att-item{display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11.5px;}
+.att-link{color:var(--ac2);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}.att-link:hover{text-decoration:underline;}
+.att-size{color:var(--t3);flex-shrink:0;font-size:11px;}
+.att-del{background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;padding:2px 4px;border-radius:3px;flex-shrink:0;}.att-del:hover{color:var(--err);}
+.att-add{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:var(--ac2);background:none;border:1px dashed var(--bd);border-radius:5px;padding:3px 8px;cursor:pointer;transition:all .12s;}.att-add:hover{border-color:var(--ac);background:rgba(99,102,241,.06);}.att-add:disabled{opacity:.5;cursor:not-allowed;}
 .sr-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background .1s;font-size:13px}.sr-item:hover{background:rgba(255,255,255,.04)}
 .sr-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
 .sr-hl{background:rgba(99,102,241,.25);color:#c7d2fe;border-radius:2px;padding:0 1px}
@@ -438,6 +445,8 @@ var D={
   sq:'',sf:'all',pipeYear:new Date().getFullYear(),
   pipePanel:null,ppTab:'acts',
   _paf:null,  // 패널 인라인 활동 입력 폼 상태
+  _attUpload:null,  // 첨부파일 업로드 진행 상태 {targetType, targetId, loading}
+  atts:[],  // 첨부파일 메타데이터
   solFilter:null,slistStg:null,slistOwner:undefined  // 영업목록/공통 필터 상태
 };
 
@@ -485,6 +494,83 @@ function doSearchRender(){
 }
 function nav(p,o={}){D.pg=p;if(o.sol!==undefined)D.ss=o.sol;if(o.cust!==undefined){D.sc=o.cust;D.ctab='summary';}if(o.partner!==undefined){D.sp=o.partner;D.ptab='info';}if(p!=='pipeline')D.pipePanel=null;D._mobSbOpen=false;render();}
 function addAct(scid,type,title,ct=''){var a={id:uid(),scid,type,title,ct,oid:D.curUser?.id||'u1',ca:now()};D.acts.unshift(a);syncToSheet('acts',a);}
+
+// ═══ 첨부파일 ═══
+function fmtSize(bytes){
+  if(!bytes)return '';
+  if(bytes>=1024*1024)return (bytes/1024/1024).toFixed(1)+'MB';
+  return Math.max(1,Math.round(bytes/1024))+'KB';
+}
+
+function triggerFileUpload(targetType,targetId){
+  let inp=document.getElementById('_att-file-input');
+  if(!inp){
+    inp=document.createElement('input');
+    inp.type='file';inp.id='_att-file-input';inp.style.display='none';
+    inp.accept='.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt,.ppt,.pptx,.zip,.hwp';
+    document.body.appendChild(inp);
+    inp.addEventListener('change',handleFileSelected);
+  }
+  inp.value='';
+  inp._attTarget={targetType,targetId};
+  inp.click();
+}
+
+async function handleFileSelected(e){
+  const file=e.target.files[0];
+  if(!file)return;
+  const MAX=3.5*1024*1024;
+  if(file.size>MAX){toast('파일은 3.5MB 이하만 첨부 가능합니다.');return;}
+  const {targetType,targetId}=e.target._attTarget||{};
+  if(!targetType||!targetId)return;
+  D._attUpload={targetType,targetId,loading:true};
+  render();
+  try{
+    const base64Data=await new Promise((res,rej)=>{
+      const fr=new FileReader();
+      fr.onload=()=>res(fr.result.split(',')[1]);
+      fr.onerror=rej;
+      fr.readAsDataURL(file);
+    });
+    const r=await apiRequest('POST','/api/upload',{
+      fileName:file.name,mimeType:file.type||'application/octet-stream',
+      base64Data,targetType,targetId,uploadedBy:D.curUser?.id||''
+    });
+    if(r.ok&&r.data?.data){
+      const att=r.data.data;att.size=Number(att.size)||0;
+      D.atts.push(att);toast('첨부파일이 업로드되었습니다.');
+    } else {
+      toast('업로드 실패: '+(r.error||'알 수 없는 오류'));
+    }
+  }catch(err){toast('업로드 오류: '+err.message);}
+  D._attUpload=null;render();
+}
+
+async function deleteAttachment(id){
+  if(!confirm('첨부파일을 삭제할까요?'))return;
+  const r=await apiRequest('DELETE','/api/attachments?id='+encodeURIComponent(id));
+  if(r.ok){D.atts=D.atts.filter(a=>a.id!==id);toast('삭제되었습니다.');render();}
+  else toast('삭제 실패: '+(r.error||'오류'));
+}
+
+function renderAttachSection(targetType,targetId){
+  const atts=D.atts.filter(a=>a.targetType===targetType&&a.targetId===targetId);
+  const uploading=D._attUpload&&D._attUpload.targetType===targetType&&D._attUpload.targetId===targetId&&D._attUpload.loading;
+  const sec=h('div',{className:'att-section'});
+  atts.forEach(att=>{
+    sec.appendChild(h('div',{className:'att-item'},
+      h('a',{className:'att-link',href:att.driveUrl,target:'_blank',rel:'noopener',title:att.fileName},'📎 '+att.fileName),
+      h('span',{className:'att-size'},fmtSize(att.size)),
+      API.mode==='sheets'?h('button',{className:'att-del',title:'삭제',onClick:()=>deleteAttachment(att.id)},'✕'):null
+    ));
+  });
+  if(API.mode==='sheets'){
+    const addBtn=h('button',{className:'att-add',disabled:uploading,onClick:()=>{if(!uploading)triggerFileUpload(targetType,targetId);}},
+      uploading?'⏳ 업로드 중...':'📎 첨부파일 추가');
+    sec.appendChild(addBtn);
+  }
+  return sec;
+}
 
 // ═══ RENDER ═══
 function render(){if(D.loggedIn){persistAuth();persistNav();}_('#root').replaceChildren(renderApp());}
@@ -839,6 +925,7 @@ function renderPipePanel(ctx){
           h('div',{style:{display:'flex',gap:'6px',justifyContent:'flex-end'}},
             h('button',{className:'btn btn-s',style:{fontSize:'10px',padding:'2px 6px'},onClick:()=>{D.modal={type:'actedit',data:{...a}};render();}},'✏️ 수정'),
             h('button',{className:'btn btn-s btn-d',style:{fontSize:'10px',padding:'2px 6px'},onClick:async()=>{if(!confirm('삭제할까요?'))return;D.acts=D.acts.filter(x=>x.id!==a.id);toast('삭제');render();syncDeleteSheet('acts',a.id);}},'🗑')));
+        actCard.appendChild(renderAttachSection('activity',a.id));
         body.appendChild(actCard);
       });
     }
@@ -853,7 +940,7 @@ function renderPipePanel(ctx){
     } else {
       ccts.forEach(ct=>{
         const cr=D.revs.filter(r=>r.ctid===ct.id);
-        body.appendChild(h('div',{style:{background:'var(--bg3)',border:'1px solid var(--bd)',borderRadius:'8px',padding:'12px',marginBottom:'8px'}},
+        const ctCard=h('div',{style:{background:'var(--bg3)',border:'1px solid var(--bd)',borderRadius:'8px',padding:'12px',marginBottom:'8px'}},
           h('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}},
             h('span',{style:{fontWeight:600,fontSize:'13px'}},ct.title),
             mkBd(ct.st==='active'?'#34d399':'#f87171',ct.st==='active'?'활성':'만료',{fontSize:'10px'})),
@@ -865,7 +952,9 @@ function renderPipePanel(ctx){
               h('div',{className:'fc',style:{gap:'6px'}},h('span',{style:{fontWeight:600}},fmt(r.amt)+'원'),mkBd(r.st==='confirmed'?'#34d399':'#fbbf24',r.st==='confirmed'?'확정':'대기',{fontSize:'10px'}))))):null,
           h('div',{style:{display:'flex',gap:'6px',justifyContent:'flex-end',marginTop:'8px'}},
             h('button',{className:'btn btn-s',style:{fontSize:'10px'},onClick:()=>{D.modal={type:'ctedit',data:{...ct}};render();}},'✏️ 계약수정'),
-            h('button',{className:'btn btn-s',style:{fontSize:'10px'},onClick:()=>{D.modal={type:'revenue',ctidFixed:ct.id};render();}},'+ 매출등록'))));
+            h('button',{className:'btn btn-s',style:{fontSize:'10px'},onClick:()=>{D.modal={type:'revenue',ctidFixed:ct.id};render();}},'+ 매출등록')));
+        ctCard.appendChild(renderAttachSection('contract',ct.id));
+        body.appendChild(ctCard);
       });
     }
     body.appendChild(h('div',{style:{marginTop:'16px'}}));
@@ -1962,7 +2051,7 @@ var API={
 };
 
 // Sheet name mapping (D key -> Sheet name)
-var SM={sols:'Solutions',custs:'Customers',partners:'Partners',pcontacts:'PartnerContacts',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users',actTypes:'ActivityTypes'};
+var SM={sols:'Solutions',custs:'Customers',partners:'Partners',pcontacts:'PartnerContacts',ctxs:'SalesContexts',acts:'Activities',cts:'Contracts',revs:'Revenues',users:'Users',actTypes:'ActivityTypes',atts:'Attachments'};
 // Field mapping (D short keys -> Sheet full keys)
 var FM={
   custs:{cn:'contactName',ph:'phone',em:'email',addr:'address',ca:'createdAt'},
@@ -1974,7 +2063,8 @@ var FM={
   revs:{ctid:'contractId',amt:'amount',rd:'revenueDate',st:'status'},
   sols:{desc:'description',ca:'createdAt'},
   users:{ca:'createdAt'},
-  actTypes:{name:'name',emoji:'emoji',autoStatus:'autoStatus'}
+  actTypes:{name:'name',emoji:'emoji',autoStatus:'autoStatus'},
+  atts:{ca:'createdAt'}
 };
 
 function toSheet(key,obj){
@@ -2011,6 +2101,7 @@ async function loadAllFromSheets(onProgress){
       if(dk==='cts')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='revs')D[dk].forEach(r=>{r.amt=Number(r.amt)||0;});
       if(dk==='pcontacts')D[dk].forEach(r=>{r.isPrimary=r.isPrimary===true||r.isPrimary==='true'||r.isPrimary==='TRUE';});
+      if(dk==='atts')D[dk].forEach(r=>{r.size=Number(r.size)||0;});
     }
   }
   if(onProgress)onProgress(100,'완료');

@@ -2,5 +2,9 @@
   "version": 2,
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/upload.js": { "maxDuration": 30 },
+    "api/attachments.js": { "maxDuration": 15 }
+  }
 }
