@@ -1,6 +1,13 @@
 'use strict';
 const { google } = require('googleapis');
 
+// 시스템 전체에서 필요한 스코프 (Sheets + Drive + Gmail 통합)
+const REQUIRED_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/gmail.send',
+];
+
 module.exports = async (req, res) => {
 
   // ── POST: in-app 설정 화면에서 호출 → {authUrl} JSON 반환 ──
@@ -15,11 +22,7 @@ module.exports = async (req, res) => {
     const state = Buffer.from(JSON.stringify({ clientId, clientSecret })).toString('base64');
     const authUrl = auth.generateAuthUrl({
       access_type: 'offline',
-      scope: [
-        'https://www.googleapis.com/auth/spreadsheets',
-        'https://www.googleapis.com/auth/drive.file',
-        'https://www.googleapis.com/auth/gmail.send',
-      ],
+      scope: REQUIRED_SCOPES,
       prompt: 'consent',
       state,
     });
@@ -50,11 +53,7 @@ h2{color:#fbbf24}code{background:#1c1c26;padding:2px 8px;border-radius:4px;font-
   const auth = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   const authUrl = auth.generateAuthUrl({
     access_type: 'offline',
-    scope: [
-      'https://www.googleapis.com/auth/spreadsheets',
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/gmail.send',
-    ],
+    scope: REQUIRED_SCOPES,
     prompt: 'consent',
     state,
   });

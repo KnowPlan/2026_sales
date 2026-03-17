@@ -1,6 +1,18 @@
 'use strict';
 const { google } = require('googleapis');
 
+// 시스템 필수 스코프 (login.js와 동일하게 유지)
+const REQUIRED_SCOPES = [
+  'https://www.googleapis.com/auth/spreadsheets',
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/gmail.send',
+];
+const SCOPE_LABELS = {
+  'https://www.googleapis.com/auth/spreadsheets': 'Google Sheets (읽기/쓰기)',
+  'https://www.googleapis.com/auth/drive':        'Google Drive (파일 관리)',
+  'https://www.googleapis.com/auth/gmail.send':   'Gmail (이메일 발송)',
+};
+
 module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   const { code, state, error } = req.query;
@@ -37,6 +49,15 @@ module.exports = async (req, res) => {
     if (!refreshToken) {
       return res.status(400).send(errPage('refresh_token을 받지 못했습니다. Google OAuth 앱에서 "오프라인 액세스"가 허용되어 있는지 확인하세요.'));
     }
+
+    // ── 스코프 검증 ──
+    const grantedScopes = (tokens.scope || '').split(' ').map(s => s.trim()).filter(Boolean);
+    const missingScopes = REQUIRED_SCOPES.filter(s => !grantedScopes.includes(s));
+    if (missingScopes.length > 0) {
+      console.error('[auth/callback] 누락된 스코프:', missingScopes);
+      return res.status(200).send(scopeErrorPage(missingScopes, grantedScopes));
+    }
+    console.log('[auth/callback] 스코프 검증 통과:', grantedScopes);
 
     // 스프레드시트 선택 페이지 표시
     return res.status(200).send(selectionPage(clientId, clientSecret, refreshToken, req.headers.host));
@@ -165,6 +186,72 @@ function selectAll(el) {
 </script>
 </body>
 </html>`;
+}
+
+function scopeErrorPage(missingScopes, grantedScopes) {
+  const SCOPE_LABELS = {
+    'https://www.googleapis.com/auth/spreadsheets': 'Google Sheets (읽기/쓰기)',
+    'https://www.googleapis.com/auth/drive':        'Google Drive (파일 관리)',
+    'https://www.googleapis.com/auth/gmail.send':   'Gmail (이메일 발송)',
+  };
+  const missingHtml = missingScopes.map(s =>
+    `<li style="margin:6px 0;color:#f87171">❌ ${SCOPE_LABELS[s] || s}</li>`
+  ).join('');
+  const grantedHtml = grantedScopes.map(s =>
+    `<li style="margin:4px 0;color:#34d399;font-size:12px">✅ ${SCOPE_LABELS[s] || s}</li>`
+  ).join('');
+  return `<!DOCTYPE html>
+<html lang="ko"><head><meta charset="UTF-8"><title>스코프 오류</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#0f0f12;color:#e8e8ee;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.wrap{max-width:540px;width:100%}
+h2{font-size:20px;color:#f87171;margin-bottom:8px}
+.sub{font-size:13px;color:#9393a8;margin-bottom:20px;line-height:1.6}
+.card{background:#1c1c26;border:1px solid #2d2d3a;border-radius:12px;padding:18px;margin-bottom:14px}
+.card-title{font-size:11px;font-weight:700;color:#64647a;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+ul{list-style:none;padding:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:11px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:none;background:#6366f1;color:#fff;margin-top:8px;text-decoration:none}
+.btn:hover{opacity:.9}
+.note{font-size:12px;color:#64647a;margin-top:12px;line-height:1.7}
+code{background:#0f0f12;border:1px solid #2d2d3a;padding:2px 6px;border-radius:4px;font-size:11px;color:#a5b4fc}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>⚠️ 필수 스코프 누락</h2>
+  <p class="sub">인증은 성공했지만 아래 권한이 허용되지 않았습니다.<br>Google Cloud Console에서 스코프를 추가 후 재인증 해주세요.</p>
+
+  <div class="card">
+    <div class="card-title">❌ 누락된 스코프</div>
+    <ul>${missingHtml}</ul>
+  </div>
+
+  ${grantedScopes.length ? `<div class="card">
+    <div class="card-title">✅ 허용된 스코프</div>
+    <ul>${grantedHtml}</ul>
+  </div>` : ''}
+
+  <div class="card">
+    <div class="card-title">📋 해결 방법</div>
+    <ol style="padding-left:18px;line-height:2;font-size:13px;color:#9393a8">
+      <li><a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" style="color:#6366f1">Google Cloud Console → OAuth 동의 화면</a> 접속</li>
+      <li><strong style="color:#e8e8ee">앱 수정</strong> → <strong style="color:#e8e8ee">범위 추가/삭제</strong> 클릭</li>
+      <li>누락된 스코프 검색 후 추가 → 저장</li>
+      <li>아래 버튼으로 재인증</li>
+    </ol>
+  </div>
+
+  <a href="/api/auth/login" class="btn">🔄 다시 인증하기</a>
+
+  <p class="note">
+    필요한 전체 스코프:<br>
+    <code>https://www.googleapis.com/auth/spreadsheets</code><br>
+    <code>https://www.googleapis.com/auth/drive</code><br>
+    <code>https://www.googleapis.com/auth/gmail.send</code>
+  </p>
+</div>
+</body></html>`;
 }
 
 function errPage(msg) {

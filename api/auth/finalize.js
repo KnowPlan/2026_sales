@@ -26,6 +26,22 @@ module.exports = async (req, res) => {
     auth.setCredentials({ refresh_token: refreshToken });
     const sheets = google.sheets({ version: 'v4', auth });
 
+    // ── 스코프 검증: Gmail 접근 가능 여부 확인 ──
+    let gmailOk = false;
+    try {
+      const gmail = google.gmail({ version: 'v1', auth });
+      await gmail.users.getProfile({ userId: 'me' });
+      gmailOk = true;
+      console.log('[auth/finalize] Gmail 스코프 확인 완료');
+    } catch (gmailErr) {
+      const msg = gmailErr.message || '';
+      if (msg.includes('insufficient') || msg.includes('forbidden') || msg.includes('Request had insufficient')) {
+        console.warn('[auth/finalize] Gmail 스코프 누락 — gmail.send 권한 없음');
+      } else {
+        console.warn('[auth/finalize] Gmail 확인 중 오류 (무시):', msg);
+      }
+    }
+
     let spreadsheetId = inputId ? inputId.trim() : null;
 
     if (!spreadsheetId) {
@@ -65,7 +81,9 @@ module.exports = async (req, res) => {
     }
 
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-    return res.json({ success: true, spreadsheetId, sheetUrl });
+    return res.json({ success: true, spreadsheetId, sheetUrl, gmailOk,
+      scopeWarning: gmailOk ? null : 'Gmail 스코프(gmail.send)가 없습니다. 이메일 발송을 사용하려면 /api/auth/login 에서 재인증 하세요.',
+    });
 
   } catch (e) {
     return res.json({ success: false, error: e.message });
